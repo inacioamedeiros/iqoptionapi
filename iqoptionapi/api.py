@@ -88,7 +88,7 @@ class IQOptionAPI(object):  # pylint: disable=too-many-instance-attributes
     socket_option_closed = {}
     timesync = TimeSync()
     profile = Profile()
-    candles = Candles()
+    candles = {}
     listinfodata = ListInfoData()
     api_option_init_all_result = []
     api_option_init_all_result_v2 = []
@@ -122,7 +122,7 @@ class IQOptionAPI(object):  # pylint: disable=too-many-instance-attributes
     close_position_data = None
     overnight_fee = None
     # ---for real time
-    digital_option_placed_id = None
+    digital_option_placed_id = {}
     live_deal_data = nested_dict(3, deque)
 
     subscribe_commission_changed_data = nested_dict(2, dict)
@@ -149,6 +149,7 @@ class IQOptionAPI(object):  # pylint: disable=too-many-instance-attributes
     leaderboard_userinfo_deals_client = None
     users_availability = None
     # ------------------
+	
 
     def __init__(self, host, username, password, proxies=None):
         """
@@ -172,6 +173,8 @@ class IQOptionAPI(object):  # pylint: disable=too-many-instance-attributes
         # If it is true, the last buy order was successful
         self.buy_successful = None
         self.__active_account_type = None
+        self.mutex = threading.Lock()
+        self.request_id = 0
 
     def prepare_http_url(self, resource):
         """Construct http url from resource url.
@@ -261,9 +264,13 @@ class IQOptionAPI(object):  # pylint: disable=too-many-instance-attributes
         """
 
         logger = logging.getLogger(__name__)
+		
+        self.mutex.acquire()
+        self.request_id += 1
+        request = self.request_id if request_id == "" else int(request_id)
+        self.mutex.release()
 
-        data = json.dumps(dict(name=name,
-                               msg=msg, request_id=request_id))
+        data = json.dumps(dict(name=name, request_id=str(request), msg=msg))
 
         while (global_value.ssl_Mutual_exclusion or global_value.ssl_Mutual_exclusion_write) and no_force_send:
             pass
@@ -271,6 +278,8 @@ class IQOptionAPI(object):  # pylint: disable=too-many-instance-attributes
         self.websocket.send(data)
         logger.debug(data)
         global_value.ssl_Mutual_exclusion_write = False
+		
+        return str(request)
 
     @property
     def logout(self):
@@ -584,6 +593,9 @@ class IQOptionAPI(object):  # pylint: disable=too-many-instance-attributes
             <iqoptionapi.ws.chanels.candles.GetCandles>`.
         """
         return GetCandles(self)
+
+    def addcandles(self, request_id, candles_data):
+        self.candles[request_id] = Candles(candles_data)
 
     def get_api_option_init_all(self):
         self.send_websocket_request(name="api_option_init_all", msg="")

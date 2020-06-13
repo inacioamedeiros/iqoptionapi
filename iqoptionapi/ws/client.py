@@ -157,7 +157,7 @@ class WebsocketClient(object):
 
         elif message["name"] == "candles":
             try:
-                self.api.candles.candles_data = message["msg"]["candles"]
+                self.api.addcandles(message["request_id"], message["msg"]["candles"])
             except:
                 pass
         # Make sure ""self.api.buySuccessful"" more stable
@@ -203,7 +203,6 @@ class WebsocketClient(object):
             elif message["microserviceName"] == "portfolio" and message["msg"]["source"] == "binary-options":
                 self.api.order_async[int(
                     message["msg"]["external_id"])][message["name"]] = message
-                # print(message)
 
         elif message["name"] == "option-opened":
             self.api.order_async[int(
@@ -277,9 +276,9 @@ class WebsocketClient(object):
             self.api.auto_margin_call_changed_respond = message
         elif message["name"] == "digital-option-placed":
             try:
-                self.api.digital_option_placed_id = message["msg"]["id"]
+                self.api.digital_option_placed_id[message["request_id"]] = message["msg"]["id"]
             except:
-                self.api.digital_option_placed_id = message["msg"]
+                self.api.digital_option_placed_id[message["request_id"]] = message["msg"]
         elif message["name"] == "result":
             self.api.result = message["msg"]["success"]
         elif message["name"] == "instrument-quotes-generated":

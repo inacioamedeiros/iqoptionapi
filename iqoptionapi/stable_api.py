@@ -408,6 +408,8 @@ class IQ_Option:
                     return "REAL"
                 elif balance["type"] == 4:
                     return "PRACTICE"
+                elif balance["type"]==2:
+                    return "TOURNAMENT"
 
     def reset_practice_balance(self):
         self.api.training_balance_reset_request = None
@@ -442,19 +444,26 @@ class IQ_Option:
 
         real_id = None
         practice_id = None
+        tournament_id = None
 
         for balance in self.get_profile_ansyc()["balances"]:
             if balance["type"] == 1:
                 real_id = balance["id"]
             if balance["type"] == 4:
                 practice_id = balance["id"]
-
+            if balance["type"] == 2:
+                tournament_id = balance["id"]
+      
         if Balance_MODE == "REAL":
             set_id(real_id)
-
+            
         elif Balance_MODE == "PRACTICE":
-
+            
             set_id(practice_id)
+
+        elif Balance_MODE == "TOURNAMENT":
+
+            set_id(tournament_id)
 
         else:
             logging.error("ERROR doesn't have this mode")
@@ -465,20 +474,19 @@ class IQ_Option:
     # ________________________self.api.getcandles() wss________________________
 
     def get_candles(self, ACTIVES, interval, count, endtime):
-        self.api.candles.candles_data = None
+        request_id = ''
         while True:
             try:
-                self.api.getcandles(
-                    OP_code.ACTIVES[ACTIVES], interval, count, endtime)
-                while self.check_connect and self.api.candles.candles_data == None:
+                request_id = self.api.getcandles(OP_code.ACTIVES[ACTIVES], interval, count, endtime)
+                while self.check_connect and request_id not in self.api.candles:
                     pass
-                if self.api.candles.candles_data != None:
+                if request_id in self.api.candles:
                     break
             except:
                 logging.error('**error** get_candles need reconnect')
                 self.connect()
 
-        return self.api.candles.candles_data
+        return self.api.candles.pop(request_id).candles_data
 
     #######################################################
     # ______________________________________________________
@@ -1015,15 +1023,14 @@ class IQ_Option:
             exp).strftime("%Y%m%d%H%M"))
         instrument_id = "do" + active + dateFormated + \
                         "PT" + str(duration) + "M" + action + "SPT"
-        self.api.digital_option_placed_id = None
 
-        self.api.place_digital_option(instrument_id, amount)
-        while self.api.digital_option_placed_id == None:
+        id = self.api.place_digital_option(instrument_id, amount)
+        while id not in self.api.digital_option_placed_id:
             pass
-        if isinstance(self.api.digital_option_placed_id, int):
-            return True, self.api.digital_option_placed_id
+        if isinstance(self.api.digital_option_placed_id[id], int):
+            return True, self.api.digital_option_placed_id[id]
         else:
-            return False, self.api.digital_option_placed_id
+            return False, self.api.digital_option_placed_id[id]
 
     def get_digital_spot_profit_after_sale(self, position_id):
         def get_instrument_id_to_bid(data, instrument_id):
@@ -1125,14 +1132,13 @@ class IQ_Option:
             return None
 
     def buy_digital(self, amount, instrument_id):
-        self.api.digital_option_placed_id = None
-        self.api.place_digital_option(instrument_id, amount)
+        id = self.api.place_digital_option(instrument_id, amount)
         start_t = time.time()
-        while self.api.digital_option_placed_id == None:
+        while id not in self.api.digital_option_placed_id:
             if time.time() - start_t > 30:
                 logging.error('buy_digital loss digital_option_placed_id')
                 return False, None
-        return True, self.api.digital_option_placed_id
+        return True, self.api.digital_option_placed_id[id]
 
     def close_digital_option(self, position_id):
         self.api.result = None
