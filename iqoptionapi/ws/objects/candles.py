@@ -67,10 +67,10 @@ class Candle(object):
 class Candles(Base):
     """Class for IQ Option Candles websocket object."""
 
-    def __init__(self):
+    def __init__(self, candles_data=None):
         super(Candles, self).__init__()
         self.__name = "candles"
-        self.__candles_data = None
+        self.__candles_data = candles_data
 
     @property
     def candles_data(self):
